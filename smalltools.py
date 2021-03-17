@@ -1,5 +1,6 @@
 import os
 import shutil
+from json import load
 
 
 def labelme2Json(dataPath, envsPath):
@@ -33,10 +34,39 @@ def getAlljsonFromFolder(FolderPath):
 
 def moveFiles(dataPath, toPath):
     """
-
+    移动文件
     @param dataPath:要移动的文件路径
     @param toPath:目的地路径(be sure don't exist “/” in the last)
     """
     shutil.move(dataPath, toPath)
 
 
+def getCoordinateFormJson(jsonPath):
+    """
+    从labelme格式的json文件中获取坐标
+    :param jsonPath:labelme格式的json文件路径
+    :return:<list>所有坐标
+    """
+    res = []
+    with open(jsonPath) as f:
+        json = load(f)
+        for i in json["shapes"]:
+            res.append(i["points"])
+    return res
+
+
+def saveJson2Txt(jsonPath, savePath):
+    """
+    将提取的坐标以ICDR2015的格式存入txt
+    :param jsonPath:
+    :param savePath:
+    """
+    files = os.listdir(jsonPath)
+    files = sorted(files)
+    for i in files:
+        imgName = i[:-5] + ".txt"
+        with open(savePath + imgName, "w") as f:
+            writeData = getCoordinateFormJson(jsonPath)
+            for j in writeData:
+                f.write(str(j).replace("[", "").replace("]", "").replace(" ", ""))
+                f.write("\n")
