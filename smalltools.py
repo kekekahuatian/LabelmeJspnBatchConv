@@ -1,6 +1,11 @@
 import os
 import shutil
 from json import load
+import matplotlib.pyplot as plt
+
+import cv2
+
+basePath = "/media/oldzhang/Data&Model&Course/data/ContainerNumber/"
 
 
 def labelme2Json(dataPath, envsPath):
@@ -70,3 +75,58 @@ def saveJson2Txt(jsonPath, savePath):
             for j in writeData:
                 f.write(str(j).replace("[", "").replace("]", "").replace(" ", ""))
                 f.write("\n")
+
+
+def imageCrop(rate, imgPath):
+    """
+    按高度缩放裁减
+    :param rate:缩放比例
+    :param imgPath:
+    :return:CropImg
+    """
+    img = cv2.imread(imgPath)
+    h, w, _ = img.shape
+    img = img[0:int(h * (1 - rate)), 0:w]
+    return img
+
+
+def getCoordinateFromTxt(dataPath):
+    """
+    从ICDR2015格式的txt中获取数据
+    :param dataPath:
+    :return:按文件返回<list>
+    """
+    files = sorted(os.listdir(dataPath))
+    res = []
+    for i in files:
+        with open(dataPath + i, "r") as f:
+            res.append(f.readlines())
+    return res
+
+
+def drawCoordinate(dataPath, imgPath):
+    """
+    将标签画到原图上测试
+    :param dataPath:
+    :param imgPath:标签数据位置
+    """
+    imgs = sorted(os.listdir(imgPath))
+    coors = getCoordinateFromTxt(dataPath)
+    for i in range(0, len(coors)):
+        img = cv2.imread(imgPath + imgs[i])
+        plt.imshow(img)
+        for j in coors[i]:
+            # change type of content in the list
+            a = list(map(float, j.split(",")))
+            plt.plot((a[0], a[2]), (a[1], a[3]))
+            plt.plot((a[2], a[4]), (a[3], a[5]))
+            plt.plot((a[4], a[6]), (a[5], a[7]))
+            plt.plot((a[6], a[0]), (a[7], a[1]))
+        plt.show()
+
+
+# drawCoordinate(basePath + "train/label/", "/home/oldzhang/桌面/temp/")
+# imgs = os.listdir("/media/oldzhang/Data&Model&Course/data/ContainerNumber/train/imgs")
+# for i in imgs:
+#     cropImg = imageCrop(0.72,basePath + "reSizeImg/" + i)
+#     cv2.imwrite("/media/oldzhang/Data&Model&Course/data/ContainerNumber/train/imgs/"+i, cropImg)
