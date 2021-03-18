@@ -125,6 +125,42 @@ def drawCoordinate(dataPath, imgPath):
         plt.show()
 
 
+def saveToOCRTxt(imgPath, labelPath, savePath):
+    """
+    生成数据标签对应txt
+    :param imgPath:
+    :param labelPath:
+    :param savePath:
+    """
+    imgs = sorted(os.listdir(imgPath))
+    labels = sorted(os.listdir(labelPath))
+    with open(savePath + "pre.txt", "w") as f:
+        for i in range(0, len(imgs)):
+            f.write(imgPath + imgs[i])
+            f.write("\t")
+            f.write(labelPath + labels[i])
+            f.write("\n")
+
+
+def addTxt(txtPath, content):
+    """
+    在txt每行末尾追加content
+    :param content: 追加的内容
+    :param txtPath:
+    """
+    files = sorted(os.listdir(txtPath))
+    for file in files:
+        with open(txtPath + file, "r") as f:
+            lines = f.readlines()
+            for i in range(0, len(lines)):
+                lines[i] = lines[i].replace("\n", ",") + content
+        with open(txtPath + file, "w") as f:
+            for i in lines:
+                f.write(i)
+                f.write("\n")
+
+# addTxt(basePath + "train/label/")
+# saveToOCRTxt(basePath + "train/imgs/", basePath + "train/label/", basePath)
 # drawCoordinate(basePath + "train/label/", "/home/oldzhang/桌面/temp/")
 # imgs = os.listdir("/media/oldzhang/Data&Model&Course/data/ContainerNumber/train/imgs")
 # for i in imgs:
