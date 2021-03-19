@@ -159,6 +159,23 @@ def addTxt(txtPath, content):
                 f.write(i)
                 f.write("\n")
 
+
+def preTest(testImgPath, testLabelPath, trainImgPath, trainLabelPath):
+    """
+    根据测试集中的图像，移动对应标签至测试集标签，并删除训练集对应图像
+    :param testImgPath:
+    :param testLabelPath:
+    :param trainImgPath:
+    :param trainLabelPath:
+    """
+    testImgs = sorted(os.listdir(testImgPath))
+    for testImg in testImgs:
+        if os.path.isfile(trainImgPath + testImg):
+            os.remove(trainImgPath + testImg)
+        testTxt = testImg[:-4] + ".txt"
+        shutil.move(trainLabelPath+testTxt,testLabelPath)
+
+# preTest(basePath+"test/img/",basePath+"test/gt/",basePath+"train/imgs/",basePath+"train/label/")
 # addTxt(basePath + "train/label/")
 # saveToOCRTxt(basePath + "train/imgs/", basePath + "train/label/", basePath)
 # drawCoordinate(basePath + "train/label/", "/home/oldzhang/桌面/temp/")
