@@ -1,3 +1,10 @@
+# -*- encoding: utf-8 -*-
+"""
+@File : CNdetection.py
+@Modify Time : 2021/3/20 下午3:45
+@Author : oldzhang
+@Description ：检测相关小工具
+"""
 import os
 import shutil
 from json import load
@@ -104,14 +111,16 @@ def getCoordinateFromTxt(dataPath):
     return res
 
 
-def drawCoordinate(dataPath, imgPath):
+def drawCoordinate(dataPath, imgPath, savePath=None):
     """
     将标签画到原图上测试
+    :param savePath: 保存路径，默认不保存
     :param dataPath:
     :param imgPath:标签数据位置
     """
     imgs = sorted(os.listdir(imgPath))
     coors = getCoordinateFromTxt(dataPath)
+    court = 0
     for i in range(0, len(coors)):
         img = cv2.imread(imgPath + imgs[i])
         plt.imshow(img)
@@ -122,7 +131,11 @@ def drawCoordinate(dataPath, imgPath):
             plt.plot((a[2], a[4]), (a[3], a[5]))
             plt.plot((a[4], a[6]), (a[5], a[7]))
             plt.plot((a[6], a[0]), (a[7], a[1]))
+        if savePath:
+            plt.savefig(savePath + imgs[i], dpi=300)
         plt.show()
+        print(court)
+        court += 1
 
 
 def saveToOCRTxt(imgPath, labelPath, savePath):
@@ -145,7 +158,7 @@ def saveToOCRTxt(imgPath, labelPath, savePath):
 def addTxt(txtPath, content):
     """
     在txt每行末尾追加content
-    :param content: 追加的内容
+    :param content: 追加的内容<list>
     :param txtPath:
     """
     files = sorted(os.listdir(txtPath))
@@ -153,7 +166,7 @@ def addTxt(txtPath, content):
         with open(txtPath + file, "r") as f:
             lines = f.readlines()
             for i in range(0, len(lines)):
-                lines[i] = lines[i].replace("\n", ",") + content
+                lines[i] = lines[i].replace("\n", ",") + content[i]
         with open(txtPath + file, "w") as f:
             for i in lines:
                 f.write(i)
@@ -173,8 +186,39 @@ def preTest(testImgPath, testLabelPath, trainImgPath, trainLabelPath):
         if os.path.isfile(trainImgPath + testImg):
             os.remove(trainImgPath + testImg)
         testTxt = testImg[:-4] + ".txt"
-        shutil.move(trainLabelPath+testTxt,testLabelPath)
+        shutil.move(trainLabelPath + testTxt, testLabelPath)
 
+
+def filesRename(filesPath):
+    """
+    批量文件改名
+    :param filesPath:
+    """
+    count = 0
+    files = sorted(os.listdir(filesPath))
+    for file in files:
+        os.rename(filesPath + file, filesPath + "img_%d" % count + ".jpg")
+        count += 1
+
+
+# files = os.listdir("/home/oldzhang/650/image/")
+# for i in files:
+#     if i[i.rfind("."):] == ".json":
+#         moveFiles("/home/oldzhang/650/image/" + i, "/home/oldzhang/650/json")
+
+# filesRename("/home/oldzhang/菜品/image/")
+# label=[]
+# with open(basePath + "untitled.txt", "r") as f:
+#     label.append(f.readlines())
+#
+# with open(basePath + "reLabel.txt", "r") as f:
+#     lines = f.readlines()
+#     for i in range(0, len(lines)):
+#         lines[i] = lines[i].replace("\n", ",") + label[0][i]
+# with open(basePath + "reLabel.txt", "w") as f:
+#     for i in lines:
+#         f.write(i)
+# f.write("\n")
 # preTest(basePath+"test/img/",basePath+"test/gt/",basePath+"train/imgs/",basePath+"train/label/")
 # addTxt(basePath + "train/label/")
 # saveToOCRTxt(basePath + "train/imgs/", basePath + "train/label/", basePath)
