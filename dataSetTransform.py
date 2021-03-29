@@ -5,14 +5,13 @@
 @Author : oldzhang
 @Description ： 数据集转换
 '''
-import datetime
+import json
 import os
 from json import load
-import json
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import SubElement
-
+from tqdm import tqdm
 from cv2 import cv2
 
 basePath = "/home/oldzhang/数据标注/菜品/"
@@ -27,6 +26,8 @@ def getMessageFormJson(jsonPath):
     res = []
     with open(jsonPath) as f:
         json = load(f)
+        if len(json)==0:
+            return
         for i in json["shapes"]:
             res.append(i["label"])
             res.append(i["points"])
@@ -55,6 +56,9 @@ def prettyXml(element, indent, newline, level=0):
         prettyXml(subelement, indent, newline, level=level + 1)
 
 
+# def getMessageFromVoc(vocPath):
+
+
 def labelme2voc(jsonPath, resPath, imgPath):
     """
     labelme转voc
@@ -64,8 +68,10 @@ def labelme2voc(jsonPath, resPath, imgPath):
     """
     jsons = sorted(os.listdir(jsonPath))
     imgs = sorted(os.listdir(imgPath))
-    for i in range(0, len(jsons)):
+    for i in tqdm(range(0, len(jsons))):
         lData = getMessageFormJson(jsonPath + jsons[i])
+        if lData==None:
+            continue
         imgName = imgs[i]
         img = cv2.imread(imgPath + imgName)
         # create xml
@@ -111,50 +117,91 @@ def labelme2voc(jsonPath, resPath, imgPath):
         imgName = imgName[:imgName.rfind(".")]
         prettyXml(annotation, '\t', '\n')
         tree.write(resPath + imgName + ".xml", encoding='utf-8')
+    print("Finish!")
 
 
 def labelme2coco(jsonPath, resPath, imgPath):
     # info和license暂时为空
-    image = {"id": int,
-             "width": int,
-             "height": int,
-             "file_name": str,
-             "license": 0,
-             "flickr_url": "null",
-             "coco_url": "null",
-             "date_captured": datetime}
-    annotation = {"id": int,
-                  "image_id": int,
-                  "category_id": int,
-                  "segmentation": "null",
-                  "area": float,
-                  "bbox": ["x", "y", "width", "height"],
-                  "iscrowd": 0}
-    categorize = {
-        "id": int,
-        "name": str,
-        "supercategory": str,
-    }
     structure = {
         "info": "null",
         "licenses": "null",
-        "images": [image],
-        "annotations": [annotation],
-        "categories": [categorize]
+        "images": [],
+        "annotations": [],
+        "categories": []
     }
 
     jsons = sorted(os.listdir(jsonPath))
     imgs = sorted(os.listdir(imgPath))
 
+    # categories
+    lid = 0
     for i in range(0, len(jsons)):
         jsonData = getMessageFormJson(jsonPath + jsons[i])
-        imgName = imgs[i]
-        img = cv2.imread(imgPath + imgName)
+        if jsonData==None:
+            continue
+        for j in range(0, len(jsonData), 2):
+            flag = True
+            categorize = {
+                "id": int,
+                "name": str,
+                "supercategory": "null",
+            }
+            for k in structure["categories"]:
+                if k["name"] == jsonData[j]:
+                    flag = False
+            if flag:
+                categorize["id"] = lid
+                lid += 1
+                categorize["name"] = jsonData[j]
+                structure["categories"].append(categorize)
 
-        for i in range(0, len(jsonData), 2):
+    # image & annotation
+    annotationId = 0
+    for i in tqdm(range(0, len(jsons))):
+        imgSize = cv2.imread(imgPath + imgs[i]).shape
+        image = {"id": i,
+                 "width": imgSize[1],
+                 "height": imgSize[0],
+                 "file_name": imgs[i],
+                 "license": 0,
+                 "flickr_url": "null",
+                 "coco_url": "null",
+                 "date_captured": "null"}
+        structure["images"].append(image)
 
-            print(1)
+        # annotation
+
+        jsonData = getMessageFormJson(jsonPath + jsons[i])
+        if jsonData==None:
+            continue
+        for j in range(0, len(jsonData), 2):
+            annotation = {"id": annotationId,
+                          "image_id": i,
+                          "category_id": int,
+                          "segmentation": "null",
+                          "area": float,
+                          "bbox": [0, 0, 0, 0],
+                          "iscrowd": 0}
+            annotationId += 1
+            for cat in structure["categories"]:
+                if cat["name"] == jsonData[j]:
+                    annotation["category_id"] = cat["id"]
+                    break
+            x = jsonData[j + 1][0][0]
+            y = jsonData[j + 1][0][1]
+            w = jsonData[j + 1][1][0] - x
+            h = jsonData[j + 1][1][1] - y
+            annotation["bbox"][0] = x
+            annotation["bbox"][1] = y
+            annotation["bbox"][2] = w
+            annotation["bbox"][3] = h
+            annotation["area"] = h * w
+            structure["annotations"].append(annotation)
+    res = json.dumps(structure)
+    with open(resPath + "res.json", "w") as f:
+        f.write(res)
+    print("Finish!")
 
 
-# labelme2voc(basePath + "json/", basePath + "transTest/", basePath + "imgs/")
-labelme2coco(basePath + "json/", basePath + "coco/", basePath + "imgs/")
+# labelme2voc(basePath + "json/", basePath + "voc/", basePath + "imgs/")
+# labelme2coco(basePath + "json/", basePath + "coco/", basePath + "imgs/")
