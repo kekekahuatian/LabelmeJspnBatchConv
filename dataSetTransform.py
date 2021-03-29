@@ -3,7 +3,7 @@
 @File : dataSetTransform.py    
 @Modify Time : 2021/3/27 下午3:02        
 @Author : oldzhang
-@Description ： 数据集转换
+@Description ： 数据集转换(图片和label文件的命名要一致)
 '''
 import json
 import os
@@ -121,6 +121,12 @@ def labelme2voc(jsonPath, resPath, imgPath):
 
 
 def labelme2coco(jsonPath, resPath, imgPath):
+    """
+    labelme到coco数据集的转换
+    :param jsonPath:labelme 数据位置
+    :param resPath:最后输出coco数据的位置，默认保存为res.json
+    :param imgPath:图片位置
+    """
     # info和license暂时为空
     structure = {
         "info": "null",
