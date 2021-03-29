@@ -75,6 +75,9 @@ def getMessageFromVoc(vocPath):
         root = tree.getroot()
         objs = root.findall("object")
         imgName = root.find("filename").text
+        if len(objs) == 0:
+            res.append(imgName)
+            continue
         size = root.find("size")
         w = size.findtext("width")
         h = size.findtext("height")
@@ -113,8 +116,7 @@ def labelme2voc(jsonPath, resPath, imgPath):
     imgs = sorted(os.listdir(imgPath))
     for i in tqdm(range(0, len(jsons))):
         lData = getMessageFormJson(jsonPath + jsons[i])
-        if lData == None:
-            continue
+
         imgName = imgs[i]
         img = cv2.imread(imgPath + imgName)
         # create xml
@@ -123,7 +125,12 @@ def labelme2voc(jsonPath, resPath, imgPath):
         folder.text = "菜品数据标注"
         filename = SubElement(annotation, 'filename')
         filename.text = imgName
-
+        if lData == None:
+            imgName = imgName[:imgName.rfind(".")]
+            tree = ElementTree(annotation)
+            prettyXml(annotation, '\t', '\n')
+            tree.write(resPath + imgName + ".xml", encoding='utf-8')
+            continue
         size = SubElement(annotation, "size")
         depth = SubElement(size, "depth")
         height = SubElement(size, "height")
