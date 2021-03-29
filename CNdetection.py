@@ -11,7 +11,7 @@ from json import load
 import matplotlib.pyplot as plt
 
 import cv2
-
+from tqdm import tqdm
 basePath = "/media/oldzhang/Data&Model&Course/data/ContainerNumber/"
 
 
@@ -44,7 +44,7 @@ def getAlljsonFromFolder(FolderPath):
     return jsonFiles
 
 
-def moveFiles(dataPath, toPath):
+def moveFile(dataPath, toPath):
     """
     移动文件
     @param dataPath:要移动的文件路径
@@ -194,18 +194,62 @@ def filesRename(filesPath):
     批量文件改名
     :param filesPath:
     """
-    count = 0
+    count = 3081
     files = sorted(os.listdir(filesPath))
     for file in files:
         os.rename(filesPath + file, filesPath + "img_%d" % count + ".jpg")
         count += 1
 
 
-# files = os.listdir("/home/oldzhang/650/image/")
-# for i in files:
-#     if i[i.rfind("."):] == ".json":
-#         moveFiles("/home/oldzhang/650/image/" + i, "/home/oldzhang/650/json")
+def moveFiles(suffix, sourcePath, resPath):
+    """
+    根据文件类型移动文件
+    :param suffix:文件后缀名(不用加.)
+    :param sourcePath:源文件夹路径
+    :param resPath:目标文件夹路径
+    """
+    files = os.listdir(sourcePath)
+    for file in files:
+        if file[file.rfind("."):] == "." + suffix:
+            moveFile(sourcePath + file, resPath)
 
+
+def compareFiles(pathA, pathB):
+    """
+    返回两个列表相同的元素<list>
+    :param pathA:
+    :param pathB:
+    """
+    filesA = sorted(os.listdir(pathA))
+    filesB = sorted(os.listdir(pathB))
+    res = []
+    for a in filesA:
+        for b in filesB:
+            if a == b:
+                res.append(a)
+    return res
+
+
+def completionFiles(path, num, suffix):
+    files = sorted(os.listdir(path))
+    for i in tqdm(range(0, num - 1)):
+        flag = True
+        for file in files:
+            if file == "img_" + str(i) + "." + suffix:
+                flag = False
+                break
+        if flag:
+            os.mknod(path+"img_" + str(i) + "." + suffix)
+            with open(path+"img_" + str(i) + "." + suffix,"w") as f:
+                f.write("{}")
+
+
+# completionFiles("/home/oldzhang/数据标注/菜品/json/", 1301, "json")
+# filesRename("/home/oldzhang/数据标注/菜品/origin/213/traced/")
+# res=compareFiles("/home/oldzhang/下载/初步643张/json","/home/oldzhang/数据标注/菜品/赵大亮/json")
+# for i in res:
+#     os.remove("/home/oldzhang/数据标注/菜品/赵大亮/json/"+i)
+# moveFiles("json", "/home/oldzhang/数据标注/菜品/赵大亮/第二次/", "/home/oldzhang/数据标注/菜品/赵大亮/第二次/json")
 # filesRename("/home/oldzhang/菜品/image/")
 # label=[]
 # with open(basePath + "untitled.txt", "r") as f:
