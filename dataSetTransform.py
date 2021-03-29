@@ -11,6 +11,7 @@ from json import load
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import SubElement
+import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from cv2 import cv2
 
@@ -26,7 +27,7 @@ def getMessageFormJson(jsonPath):
     res = []
     with open(jsonPath) as f:
         json = load(f)
-        if len(json)==0:
+        if len(json) == 0:
             return
         for i in json["shapes"]:
             res.append(i["label"])
@@ -56,7 +57,49 @@ def prettyXml(element, indent, newline, level=0):
         prettyXml(subelement, indent, newline, level=level + 1)
 
 
-# def getMessageFromVoc(vocPath):
+def getMessageFromVoc(vocPath):
+    """
+    从voc xml中获取数据
+    :param vocPath:voc 路径
+    :return:res[img,obj]
+            img[filename,w,h]
+            obj[bbox]
+            bbox[label,xmin,ymin,xmax,ymax]
+    """
+    files = sorted(os.listdir(vocPath))
+    res = []
+    for file in files:
+        fileData = []
+        img = []
+        tree = ET.parse(vocPath + file)
+        root = tree.getroot()
+        objs = root.findall("object")
+        imgName = root.find("filename").text
+        size = root.find("size")
+        w = size.findtext("width")
+        h = size.findtext("height")
+        img.append(imgName)
+        img.append(w)
+        img.append(h)
+        fileData.append(img)
+        objList = []
+        for obj in objs:
+            objTemp = []
+            label = obj.findtext("name")
+            bbox = obj.find("bndbox")
+            xmin = bbox.findtext("xmin")
+            ymin = bbox.findtext("ymin")
+            xmax = bbox.findtext("xmax")
+            ymax = bbox.findtext("ymax")
+            objTemp.append(label)
+            objTemp.append(xmin)
+            objTemp.append(ymin)
+            objTemp.append(xmax)
+            objTemp.append(ymax)
+            objList.append(objTemp)
+        fileData.append(objList)
+        res.append(fileData)
+    return res
 
 
 def labelme2voc(jsonPath, resPath, imgPath):
@@ -70,7 +113,7 @@ def labelme2voc(jsonPath, resPath, imgPath):
     imgs = sorted(os.listdir(imgPath))
     for i in tqdm(range(0, len(jsons))):
         lData = getMessageFormJson(jsonPath + jsons[i])
-        if lData==None:
+        if lData == None:
             continue
         imgName = imgs[i]
         img = cv2.imread(imgPath + imgName)
@@ -143,7 +186,7 @@ def labelme2coco(jsonPath, resPath, imgPath):
     lid = 0
     for i in range(0, len(jsons)):
         jsonData = getMessageFormJson(jsonPath + jsons[i])
-        if jsonData==None:
+        if jsonData == None:
             continue
         for j in range(0, len(jsonData), 2):
             flag = True
@@ -178,7 +221,7 @@ def labelme2coco(jsonPath, resPath, imgPath):
         # annotation
 
         jsonData = getMessageFormJson(jsonPath + jsons[i])
-        if jsonData==None:
+        if jsonData == None:
             continue
         for j in range(0, len(jsonData), 2):
             annotation = {"id": annotationId,
@@ -211,3 +254,4 @@ def labelme2coco(jsonPath, resPath, imgPath):
 
 # labelme2voc(basePath + "json/", basePath + "voc/", basePath + "imgs/")
 # labelme2coco(basePath + "json/", basePath + "coco/", basePath + "imgs/")
+getMessageFromVoc(basePath + "voc/")
