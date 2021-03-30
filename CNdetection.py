@@ -231,6 +231,12 @@ def compareFiles(pathA, pathB):
 
 
 def completionFiles(path, num, suffix):
+    """
+    扩充文件到指定数量
+    :param path:
+    :param num:扩充到的数量
+    :param suffix:文件后缀
+    """
     files = sorted(os.listdir(path))
     for i in tqdm(range(0, num - 1)):
         flag = True
