@@ -9,9 +9,10 @@ import os
 import shutil
 from json import load
 import matplotlib.pyplot as plt
-
+import json
 import cv2
 from tqdm import tqdm
+
 basePath = "/media/oldzhang/Data&Model&Course/data/ContainerNumber/"
 
 
@@ -214,7 +215,7 @@ def moveFiles(suffix, sourcePath, resPath):
             moveFile(sourcePath + file, resPath)
 
 
-def compareFiles(pathA, pathB):
+def compareList(pathA, pathB):
     """
     返回两个列表相同的元素<list>
     :param pathA:
@@ -230,50 +231,39 @@ def compareFiles(pathA, pathB):
     return res
 
 
-def completionFiles(path, num, suffix):
+def compareFloder(pathA, pathB):
     """
-    扩充文件到指定数量
-    :param path:
-    :param num:扩充到的数量
-    :param suffix:文件后缀
+    扩充文件b使于a同步并写入基础labelme json的格式
+    :param pathA:
+    :param pathB:
+    :param suffix:扩充文件后缀
     """
-    files = sorted(os.listdir(path))
-    for i in tqdm(range(0, num - 1)):
-        flag = True
-        for file in files:
-            if file == "img_" + str(i) + "." + suffix:
-                flag = False
-                break
-        if flag:
-            os.mknod(path+"img_" + str(i) + "." + suffix)
-            with open(path+"img_" + str(i) + "." + suffix,"w") as f:
-                f.write("{}")
+    filesA = sorted(os.listdir(pathA))
+    filesB = sorted(os.listdir(pathB))
+    j = 0
+
+    for i in range(0, len(filesA)):
+        fileA = filesA[i]
+        fileB = filesB[j]
+        fileAName = fileA[:fileA.rfind(".")]
+        fileBName = fileB[:fileB.rfind(".")]
+        if fileAName != fileBName:
+            j -= 1
+            img = cv2.imread(pathA + fileA).shape
+            structure = {
+                "version": "4.5.7",
+                "flags": {},
+                "shapes": [],
+                "imagePath": fileA,
+                "imageData": "null",
+                "imageHeight": img[0],
+                "imageWidth": img[1]
+            }
+
+            with open(pathB + fileAName + ".json", "w") as f:
+                res = json.dumps(structure)
+                f.write(res)
+        j += 1
 
 
-# completionFiles("/home/oldzhang/数据标注/菜品/json/", 1301, "json")
-# filesRename("/home/oldzhang/数据标注/菜品/origin/213/traced/")
-# res=compareFiles("/home/oldzhang/下载/初步643张/json","/home/oldzhang/数据标注/菜品/赵大亮/json")
-# for i in res:
-#     os.remove("/home/oldzhang/数据标注/菜品/赵大亮/json/"+i)
-# moveFiles("json", "/home/oldzhang/数据标注/菜品/赵大亮/第二次/", "/home/oldzhang/数据标注/菜品/赵大亮/第二次/json")
-# filesRename("/home/oldzhang/菜品/image/")
-# label=[]
-# with open(basePath + "untitled.txt", "r") as f:
-#     label.append(f.readlines())
-#
-# with open(basePath + "reLabel.txt", "r") as f:
-#     lines = f.readlines()
-#     for i in range(0, len(lines)):
-#         lines[i] = lines[i].replace("\n", ",") + label[0][i]
-# with open(basePath + "reLabel.txt", "w") as f:
-#     for i in lines:
-#         f.write(i)
-# f.write("\n")
-# preTest(basePath+"test/img/",basePath+"test/gt/",basePath+"train/imgs/",basePath+"train/label/")
-# addTxt(basePath + "train/label/")
-# saveToOCRTxt(basePath + "train/imgs/", basePath + "train/label/", basePath)
-# drawCoordinate(basePath + "train/label/", "/home/oldzhang/桌面/temp/")
-# imgs = os.listdir("/media/oldzhang/Data&Model&Course/data/ContainerNumber/train/imgs")
-# for i in imgs:
-#     cropImg = imageCrop(0.72,basePath + "reSizeImg/" + i)
-#     cv2.imwrite("/media/oldzhang/Data&Model&Course/data/ContainerNumber/train/imgs/"+i, cropImg)
+compareFloder("/home/oldzhang/下载/test/imgs/", "/home/oldzhang/下载/test/json/")
