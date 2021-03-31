@@ -467,8 +467,8 @@ def coco2voc(cocoPath, resPath):
             ymax = SubElement(bndbox, "ymax")
             xmin.text = str(obj[1][0])
             ymin.text = str(obj[1][1])
-            xmax.text = str(obj[1][2])
-            ymax.text = str(obj[1][3])
+            xmax.text = str(obj[1][2]+obj[1][0])
+            ymax.text = str(obj[1][3]+obj[1][1])
         tree = ElementTree(annotation)
         prettyXml(annotation, '\t', '\n')
         tree.write(resPath + imgName + ".xml", encoding='utf-8')
@@ -516,6 +516,6 @@ def coco2txt(cocoPath, resPath):
 # labelme2coco(basePath + "json/0-2999/", basePath + "dataTrans/coco/", basePath + "imgs/0-2999/")
 # voc2coco(basePath + "dataTrans/vocfromcoco/", basePath + "dataTrans/coco/")
 # voc2txt(basePath + "dataTrans/vocfromcoco/", basePath + "dataTrans/darknet/")
-# # coco2voc("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromLabelme.json", "/home/oldzhang/数据标注/菜品/dataTrans/vocfromcoco/")
-# coco2txt("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromVoc.json", "/home/oldzhang/数据标注/菜品/dataTrans"
+# coco2voc("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromLabelme.json", "/home/oldzhang/数据标注/菜品/dataTrans/vocfromcoco/")
+# coco2txt("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromLabelme.json", "/home/oldzhang/数据标注/菜品/dataTrans"
 #                                                                       "/darknetfromcoco/")
