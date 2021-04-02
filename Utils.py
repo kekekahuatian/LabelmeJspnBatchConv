@@ -6,6 +6,7 @@
 @Description ： 工具类
 '''
 import os
+import threading
 from json import load
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
@@ -13,6 +14,7 @@ from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import SubElement
 
 from cv2 import cv2
+from tqdm.auto import tqdm
 
 from pycocotools.coco import COCO
 
@@ -264,3 +266,114 @@ def createCocoImage(imgPath, imgName, imgId):
              "coco_url": "null",
              "date_captured": "null"}
     return image
+
+
+class labelme2vocThread(threading.Thread):
+    def __init__(self, threadID, jsons, resPath, imgs):
+        threading.Thread.__init__(self)
+        self.threadID = threadID
+        self.jsons = jsons
+        self.resPath = resPath
+        self.imgs = imgs
+
+    def run(self):
+        print("开始线程：" + self.name)
+        for i in tqdm(range(0, len(self.jsons))):
+            bboxs = getMessageFormJson(self.jsons[i])
+            imgName = self.imgs[i][self.imgs[i].rfind("/"):]
+            size = list(cv2.imread(self.imgs[i]).shape)
+            img = [imgName, size]
+            annotation = createVocXml(bboxs, img)
+            tree = ElementTree(annotation)
+            imgName = imgName[:imgName.rfind(".")]
+            prettyXml(annotation, '\t', '\n')
+            tree.write(self.resPath + imgName + ".xml", encoding='utf-8')
+        print("Finish!")
+        print("退出线程：" + self.threadID)
+
+class labelme2cocoThread(threading.Thread):
+    def __init__(self, threadID, jsons, resPath, imgs):
+        threading.Thread.__init__(self)
+        self.threadID = threadID
+        self.jsons = jsons
+        self.resPath = resPath
+        self.imgs = imgs
+
+    def run(self):
+        print("开始线程：" + self.name)
+        # info和license暂时为空
+        structure = {
+            "info": "null",
+            "licenses": "null",
+            "images": [],
+            "annotations": [],
+            "categories": []
+        }
+        # categories
+        lid = 0
+        for i in range(0, len(self.jsons)):
+            jsonData = getMessageFormJson(self.jsons[i])
+            if jsonData is None:
+                continue
+            for bbox in jsonData:
+                flag = True
+                categorize = {
+                    "id": int,
+                    "name": str,
+                    "supercategory": "null",
+                }
+                for k in structure["categories"]:
+                    if k["name"] == bbox[0]:
+                        flag = False
+                if flag:
+                    categorize["id"] = lid
+                    lid += 1
+                    categorize["name"] = bbox[0]
+                    structure["categories"].append(categorize)
+
+        # image & annotation
+        annotationId = 0
+        for i in tqdm(range(0, len(self.jsons))):
+            imgSize = cv2.imread(self.imgs[i]).shape
+            image = {"id": i,
+                     "width": imgSize[1],
+                     "height": imgSize[0],
+                     "file_name": self.imgs[i],
+                     "license": 0,
+                     "flickr_url": "null",
+                     "coco_url": "null",
+                     "date_captured": "null"}
+            structure["images"].append(image)
+
+            # annotation
+
+            jsonData = getMessageFormJson(self.jsons[i])
+            if jsonData is None:
+                continue
+            for bbox in jsonData:
+                annotation = {"id": annotationId,
+                              "image_id": i,
+                              "category_id": int,
+                              "segmentation": "null",
+                              "area": float,
+                              "bbox": [0, 0, 0, 0],
+                              "iscrowd": 0}
+                annotationId += 1
+                for cat in structure["categories"]:
+                    if cat["name"] == bbox[0]:
+                        annotation["category_id"] = cat["id"]
+                        break
+                x = bbox[1][0]
+                y = bbox[1][1]
+                w = bbox[2][0] - x
+                h = bbox[2][1] - y
+                annotation["bbox"][0] = x
+                annotation["bbox"][1] = y
+                annotation["bbox"][2] = w
+                annotation["bbox"][3] = h
+                annotation["area"] = h * w
+                structure["annotations"].append(annotation)
+        res = json.dumps(structure)
+        with open(self.resPath + "resFromLabelme.json", "w") as f:
+            f.write(res)
+        print("退出线程：" + self.threadID)
