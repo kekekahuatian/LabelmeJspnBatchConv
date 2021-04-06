@@ -45,7 +45,7 @@ def labelme2voc(jsonPath, resPath, imgPath, numWork=2):
     ed = a
     threads = []
     for i in range(0, numWork):
-        if i==numWork-1:
+        if i == numWork - 1:
             temp = Utils.labelme2vocThread(str(i), jsons[bg:], resPath, imgs[bg:])
         else:
             temp = Utils.labelme2vocThread(str(i), jsons[bg:ed], resPath, imgs[bg:ed])
@@ -191,6 +191,16 @@ def voc2coco(vocPath, resPath):
     imageId = 0
     for vocData in tqdm(vocDatas):
         if not isinstance(vocData, list):
+            image = {"id": imageId,
+                     "license": 0,
+                     "flickr_url": "null",
+                     "coco_url": "null",
+                     "date_captured": "null",
+                     "file_name":vocData,
+                     "height":0,
+                     "width":0}
+            structure["images"].append(image)
+            imageId += 1
             continue
         image = {"id": imageId,
                  "width": vocData[0][2],
@@ -269,6 +279,7 @@ def coco2voc(cocoPath, resPath):
         objs = cocoData[1]
         imgData = [img["file_name"], [img["height"], img["width"], 3]]
         imgName = img["file_name"][:img["file_name"].rfind(".")]
+        imgName = imgName[imgName.rfind("/") + 1:]
         bboxs = []
         for obj in objs:
             obj[1][2] = obj[1][2] + obj[1][0]
