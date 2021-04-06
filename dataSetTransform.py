@@ -45,9 +45,12 @@ def labelme2voc(jsonPath, resPath, imgPath, numWork=2):
     ed = a
     threads = []
     for i in range(0, numWork):
-        temp = Utils.labelme2vocThread(str(i), jsons[bg:ed], resPath, imgs[bg:ed])
-        bg = bg + a
-        ed = ed + a
+        if i==numWork-1:
+            temp = Utils.labelme2vocThread(str(i), jsons[bg:], resPath, imgs[bg:])
+        else:
+            temp = Utils.labelme2vocThread(str(i), jsons[bg:ed], resPath, imgs[bg:ed])
+            bg = bg + a
+            ed = ed + a
         threads.append(temp)
     for thread in threads:
         thread.start()
@@ -299,10 +302,10 @@ def coco2txt(cocoPath, resPath):
         Utils.createDrakNetTxt(bboxs, imgData, resPath)
 
 
-# labelme2voc(basePath + "json/0-2999/", basePath + "dataTrans/voc/", basePath + "imgs/0-2999/")
+labelme2voc(basePath + "json/0-2999/", basePath + "dataTrans/voc/", basePath + "imgs/0-2999/")
 # labelme2coco(basePath + "json/0-2999/", basePath + "dataTrans/coco/", basePath + "imgs/0-2999/")
 # voc2coco(basePath + "dataTrans/voc/", basePath + "dataTrans/coco/")
 # voc2txt(basePath + "dataTrans/voc/", basePath + "dataTrans/darknet/")
 # coco2voc("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromVoc.json", "/home/oldzhang/数据标注/菜品/dataTrans/vocfromcoco/")
-coco2txt("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromLabelme.json", "/home/oldzhang/数据标注/菜品/dataTrans"
-                                                                       "/darknetfromcoco/")
+# coco2txt("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromLabelme.json", "/home/oldzhang/数据标注/菜品/dataTrans"
+#                                                                        "/darknetfromcoco/")
