@@ -4,6 +4,7 @@
 @Modify Time : 2021/3/27 下午3:02        
 @Author : oldzhang
 @Description ： 数据集转换(图片和label文件的命名要一致)
+图片和label数量最好相等，utils有扩充labelme json文件数量至图片数量的compareFloder（）函数，不相等时请调用
 '''
 import json
 import os
@@ -31,6 +32,7 @@ def labelme2voc(jsonPath, resPath, imgPath, numWork=2):
     :param resPath:最终保存的voc xml 路径
     :param imgPath:图片文件夹路径
     """
+
     start = time.time()
     jsons = sorted(os.listdir(jsonPath))
     imgs = sorted(os.listdir(imgPath))
@@ -67,24 +69,80 @@ def labelme2coco(jsonPath, resPath, imgPath, numWork=2):
     start = time.time()
     jsons = sorted(os.listdir(jsonPath))
     imgs = sorted(os.listdir(imgPath))
+    structure = {
+        "info": "null",
+        "licenses": "null",
+        "images": [],
+        "annotations": [],
+        "categories": []
+    }
+    # categories
+    lid = 0
     for i in range(0, len(jsons)):
-        jsons[i] = jsonPath + jsons[i]
-        imgs[i] = imgPath + imgs[i]
-    # 创建新线程
-    a = int(len(jsons) / numWork)
-    bg = 0
-    ed = a
-    threads = []
-    for i in range(0, numWork):
-        temp = Utils.labelme2vocThread(str(i), jsons[bg:ed], resPath, imgs[bg:ed])
-        bg = bg + a
-        ed = ed + a
-        threads.append(temp)
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
-    print("退出主线程")
+        jsonData = getMessageFormJson(jsonPath+jsons[i])
+        if jsonData is None:
+            continue
+        for bbox in jsonData:
+            flag = True
+            categorize = {
+                "id": int,
+                "name": str,
+                "supercategory": "null",
+            }
+            for k in structure["categories"]:
+                if k["name"] == bbox[0]:
+                    flag = False
+            if flag:
+                categorize["id"] = lid
+                lid += 1
+                categorize["name"] = bbox[0]
+                structure["categories"].append(categorize)
+
+    # image & annotation
+    annotationId = 0
+    for i in tqdm(range(0, len(jsons))):
+        imgSize = cv2.imread(imgPath+imgs[i]).shape
+        image = {"id": i,
+                 "width": imgSize[1],
+                 "height": imgSize[0],
+                 "file_name": imgs[i],
+                 "license": 0,
+                 "flickr_url": "null",
+                 "coco_url": "null",
+                 "date_captured": "null"}
+        structure["images"].append(image)
+
+        # annotation
+
+        jsonData = getMessageFormJson(jsonPath+jsons[i])
+        if jsonData is None:
+            continue
+        for bbox in jsonData:
+            annotation = {"id": annotationId,
+                          "image_id": i,
+                          "category_id": int,
+                          "segmentation": "null",
+                          "area": float,
+                          "bbox": [0, 0, 0, 0],
+                          "iscrowd": 0}
+            annotationId += 1
+            for cat in structure["categories"]:
+                if cat["name"] == bbox[0]:
+                    annotation["category_id"] = cat["id"]
+                    break
+            x = bbox[1][0]
+            y = bbox[1][1]
+            w = bbox[2][0] - x
+            h = bbox[2][1] - y
+            annotation["bbox"][0] = x
+            annotation["bbox"][1] = y
+            annotation["bbox"][2] = w
+            annotation["bbox"][3] = h
+            annotation["area"] = h * w
+            structure["annotations"].append(annotation)
+    res = json.dumps(structure)
+    with open(resPath + "resFromLabelme.json", "w") as f:
+        f.write(res)
     print(time.time() - start)
     print("Finish!")
 
@@ -160,8 +218,8 @@ def voc2coco(vocPath, resPath):
                     break
             x = bbox[1]
             y = bbox[2]
-            w = abs(bbox[3]-x)
-            h = abs(bbox[4]-y)
+            w = abs(bbox[3] - x)
+            h = abs(bbox[4] - y)
             annotation["bbox"][0] = x
             annotation["bbox"][1] = y
             annotation["bbox"][2] = w
@@ -222,6 +280,11 @@ def coco2voc(cocoPath, resPath):
 
 
 def coco2txt(cocoPath, resPath):
+    """
+    coco2darknettxt
+    :param cocoPath:
+    :param resPath:
+    """
     cocoDatas = getMessageFromCoco(cocoPath)
     for cocoData in cocoDatas:
         img = cocoData[0]
@@ -235,10 +298,11 @@ def coco2txt(cocoPath, resPath):
             bboxs.append(temp)
         Utils.createDrakNetTxt(bboxs, imgData, resPath)
 
-labelme2voc(basePath + "json/0-2999/", basePath + "dataTrans/voc/", basePath + "imgs/0-2999/")
-labelme2coco(basePath + "json/0-2999/", basePath + "dataTrans/coco/", basePath + "imgs/0-2999/")
-voc2coco(basePath + "dataTrans/vocfromcoco/", basePath + "dataTrans/coco/")
-voc2txt(basePath + "dataTrans/vocfromcoco/", basePath + "dataTrans/darknet/")
-coco2voc("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromVoc.json", "/home/oldzhang/数据标注/菜品/dataTrans/vocfromcoco/")
+
+# labelme2voc(basePath + "json/0-2999/", basePath + "dataTrans/voc/", basePath + "imgs/0-2999/")
+# labelme2coco(basePath + "json/0-2999/", basePath + "dataTrans/coco/", basePath + "imgs/0-2999/")
+# voc2coco(basePath + "dataTrans/voc/", basePath + "dataTrans/coco/")
+# voc2txt(basePath + "dataTrans/voc/", basePath + "dataTrans/darknet/")
+# coco2voc("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromVoc.json", "/home/oldzhang/数据标注/菜品/dataTrans/vocfromcoco/")
 coco2txt("/home/oldzhang/数据标注/菜品/dataTrans/coco/resFromLabelme.json", "/home/oldzhang/数据标注/菜品/dataTrans"
                                                                        "/darknetfromcoco/")

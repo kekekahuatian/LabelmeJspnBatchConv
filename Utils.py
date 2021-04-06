@@ -5,6 +5,7 @@
 @Author : oldzhang
 @Description ： 工具类
 '''
+import json
 import os
 import threading
 from json import load
@@ -291,13 +292,14 @@ class labelme2vocThread(threading.Thread):
         print("Finish!")
         print("退出线程：" + self.threadID)
 
+
 class labelme2cocoThread(threading.Thread):
-    def __init__(self, threadID, jsons, resPath, imgs):
+    def __init__(self, threadID, jsons, imgs, bg):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.jsons = jsons
-        self.resPath = resPath
         self.imgs = imgs
+        self.bg = bg
 
     def run(self):
         print("开始线程：" + self.name)
@@ -373,7 +375,43 @@ class labelme2cocoThread(threading.Thread):
                 annotation["bbox"][3] = h
                 annotation["area"] = h * w
                 structure["annotations"].append(annotation)
-        res = json.dumps(structure)
-        with open(self.resPath + "resFromLabelme.json", "w") as f:
-            f.write(res)
+        self.structure = structure
+
         print("退出线程：" + self.threadID)
+
+    def getRes(self):
+        return self.structure
+
+
+def compareFloder(pathA, pathB):
+    """
+    扩充文件b使于a同步并写入基础labelme json的格式
+    :param pathA:
+    :param pathB:
+    """
+    filesA = sorted(os.listdir(pathA))
+    filesB = sorted(os.listdir(pathB))
+    j = 0
+
+    for i in range(0, len(filesA)):
+        fileA = filesA[i]
+        fileB = filesB[j]
+        fileAName = fileA[:fileA.rfind(".")]
+        fileBName = fileB[:fileB.rfind(".")]
+        if fileAName != fileBName:
+            j -= 1
+            img = cv2.imread(pathA + fileA).shape
+            structure = {
+                "version": "4.5.7",
+                "flags": {},
+                "shapes": [],
+                "imagePath": fileA,
+                "imageData": "null",
+                "imageHeight": img[0],
+                "imageWidth": img[1]
+            }
+
+            with open(pathB + fileAName + ".json", "w") as f:
+                res = json.dumps(structure)
+                f.write(res)
+        j += 1
