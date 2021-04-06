@@ -8,11 +8,13 @@
 import json
 import os
 import threading
+from threading import Lock
 from json import load
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import SubElement
+from queue import Queue
 
 from cv2 import cv2
 from tqdm.auto import tqdm
@@ -281,7 +283,7 @@ class labelme2vocThread(threading.Thread):
         print("开始线程：" + self.name)
         for i in tqdm(range(0, len(self.jsons))):
             bboxs = getMessageFormJson(self.jsons[i])
-            imgName = self.imgs[i][self.imgs[i].rfind("/"):]
+            imgName = self.imgs[i][self.imgs[i].rfind("/")+1:]
             size = list(cv2.imread(self.imgs[i]).shape)
             img = [imgName, size]
             annotation = createVocXml(bboxs, img)
@@ -294,89 +296,15 @@ class labelme2vocThread(threading.Thread):
 
 
 class labelme2cocoThread(threading.Thread):
-    def __init__(self, threadID, jsons, imgs, bg):
+    def __init__(self, threadID, jsons, imgs):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.jsons = jsons
         self.imgs = imgs
-        self.bg = bg
 
     def run(self):
-        print("开始线程：" + self.name)
-        # info和license暂时为空
-        structure = {
-            "info": "null",
-            "licenses": "null",
-            "images": [],
-            "annotations": [],
-            "categories": []
-        }
-        # categories
-        lid = 0
-        for i in range(0, len(self.jsons)):
-            jsonData = getMessageFormJson(self.jsons[i])
-            if jsonData is None:
-                continue
-            for bbox in jsonData:
-                flag = True
-                categorize = {
-                    "id": int,
-                    "name": str,
-                    "supercategory": "null",
-                }
-                for k in structure["categories"]:
-                    if k["name"] == bbox[0]:
-                        flag = False
-                if flag:
-                    categorize["id"] = lid
-                    lid += 1
-                    categorize["name"] = bbox[0]
-                    structure["categories"].append(categorize)
-
-        # image & annotation
-        annotationId = 0
-        for i in tqdm(range(0, len(self.jsons))):
-            imgSize = cv2.imread(self.imgs[i]).shape
-            image = {"id": i,
-                     "width": imgSize[1],
-                     "height": imgSize[0],
-                     "file_name": self.imgs[i],
-                     "license": 0,
-                     "flickr_url": "null",
-                     "coco_url": "null",
-                     "date_captured": "null"}
-            structure["images"].append(image)
-
-            # annotation
-
-            jsonData = getMessageFormJson(self.jsons[i])
-            if jsonData is None:
-                continue
-            for bbox in jsonData:
-                annotation = {"id": annotationId,
-                              "image_id": i,
-                              "category_id": int,
-                              "segmentation": "null",
-                              "area": float,
-                              "bbox": [0, 0, 0, 0],
-                              "iscrowd": 0}
-                annotationId += 1
-                for cat in structure["categories"]:
-                    if cat["name"] == bbox[0]:
-                        annotation["category_id"] = cat["id"]
-                        break
-                x = bbox[1][0]
-                y = bbox[1][1]
-                w = bbox[2][0] - x
-                h = bbox[2][1] - y
-                annotation["bbox"][0] = x
-                annotation["bbox"][1] = y
-                annotation["bbox"][2] = w
-                annotation["bbox"][3] = h
-                annotation["area"] = h * w
-                structure["annotations"].append(annotation)
-        self.structure = structure
-
+        print("开始线程：" + self.threadID)
+        labelme2coco(self)
         print("退出线程：" + self.threadID)
 
     def getRes(self):
@@ -415,3 +343,96 @@ def compareFloder(pathA, pathB):
                 res = json.dumps(structure)
                 f.write(res)
         j += 1
+
+
+annotationId, labelId, imageId = 0, 0, 0
+
+
+def labelme2coco(self):
+    # info和license暂时为空
+    structure = {
+        "info": "null",
+        "licenses": "null",
+        "images": [],
+        "annotations": [],
+        "categories": []
+    }
+    # categories
+    labelLock = Lock()
+    for i in range(0, len(self.jsons)):
+        jsonData = getMessageFormJson(self.jsons[i])
+        if jsonData is None:
+            continue
+        for bbox in jsonData:
+            flag = True
+            categorize = {
+                "id": int,
+                "name": str,
+                "supercategory": "null",
+            }
+            for k in structure["categories"]:
+                if k["name"] == bbox[0]:
+                    flag = False
+            if flag:
+                global labelId
+                if labelLock.acquire(True):
+                    categorize["id"] = labelId
+                    labelId += 1
+                    labelLock.release()
+                    categorize["name"] = bbox[0]
+                    structure["categories"].append(categorize)
+
+    # image & annotation
+    for i in tqdm(range(0, len(self.jsons))):
+        imgSize = cv2.imread(self.imgs[i]).shape
+        imageLock = Lock()
+        global imageId
+        if imageLock.acquire(True):
+            image = {"id": imageId,
+                     "width": imgSize[1],
+                     "height": imgSize[0],
+                     "file_name": self.imgs[i],
+                     "license": 0,
+                     "flickr_url": "null",
+                     "coco_url": "null",
+                     "date_captured": "null"}
+            structure["images"].append(image)
+
+            # annotation
+
+            jsonData = getMessageFormJson(self.jsons[i])
+            if jsonData is None:
+                continue
+
+
+            for bbox in jsonData:
+                global annotationId
+                annotationLock = Lock()
+                if annotationLock.acquire(True):
+                    annotation = {"id": annotationId,
+                                  "image_id": imageId,
+                                  "category_id": int,
+                                  "segmentation": "null",
+                                  "area": float,
+                                  "bbox": [0, 0, 0, 0],
+                                  "iscrowd": 0}
+                    annotationId += 1
+                    annotationLock.release()
+                    for cat in structure["categories"]:
+                        if cat["name"] == bbox[0]:
+                            annotation["category_id"] = cat["id"]
+                            break
+                    x = bbox[1][0]
+                    y = bbox[1][1]
+                    w = bbox[2][0] - x
+                    h = bbox[2][1] - y
+                    annotation["bbox"][0] = x
+                    annotation["bbox"][1] = y
+                    annotation["bbox"][2] = w
+                    annotation["bbox"][3] = h
+                    annotation["area"] = h * w
+                    structure["annotations"].append(annotation)
+            imageId += 1
+            imageLock.release()
+
+    self.structure = structure
